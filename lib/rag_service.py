@@ -60,8 +60,17 @@ def tokenize(text: str) -> set[str]:
     - Remove tokens in STOPWORDS.
     - Return a set of searchable terms.
     """
-    # TODO: Replace this placeholder with your implementation.
-    return set()
+    tokens: set[str] = set()
+    if not text:
+        return tokens
+
+    for match in re.finditer(r"[a-z0-9]+(?:'[a-z0-9]+)?", text.lower()):
+        token = match.group(0).strip("'")
+        if len(token) <= 1 or token in STOPWORDS:
+            continue
+        tokens.add(token)
+
+    return tokens
 
 
 def document_search_text(document: dict[str, Any]) -> str:
@@ -70,8 +79,11 @@ def document_search_text(document: dict[str, Any]) -> str:
     TODO:
     Include title, category, tags, and text.
     """
-    # TODO: Replace this placeholder with your implementation.
-    return ""
+    title = document.get("title", "") or ""
+    category = document.get("category", "") or ""
+    tags = " ".join(document.get("tags", []) or [])
+    body = document.get("text", "") or ""
+    return " ".join(part for part in [title, category, tags, body] if part)
 
 
 def score_document(query: str, document: dict[str, Any]) -> dict[str, Any]:
@@ -85,11 +97,18 @@ def score_document(query: str, document: dict[str, Any]) -> dict[str, Any]:
     - Add a small title boost: 0.5 for each query token found in the title.
     - Return a dictionary with keys: document, score, matched_terms.
     """
-    # TODO: Replace this placeholder with your implementation.
+    query_tokens = tokenize(query)
+    document_tokens = tokenize(document_search_text(document))
+    title_tokens = tokenize(document.get("title", "") or "")
+
+    matched_terms = sorted(query_tokens & document_tokens)
+    title_boost = 0.5 * sum(1 for term in query_tokens if term in title_tokens)
+    score = len(matched_terms) + title_boost
+
     return {
         "document": document,
-        "score": 0,
-        "matched_terms": [],
+        "score": score,
+        "matched_terms": matched_terms,
     }
 
 
@@ -110,8 +129,12 @@ def retrieve_context(
     The selected context must depend on the user's query. Do not return the same
     hardcoded document for every request.
     """
-    # TODO: Replace this placeholder with your implementation.
-    return []
+    scored_documents = [score_document(query, document) for document in documents]
+    relevant_matches = [
+        item for item in scored_documents if item["score"] >= minimum_score
+    ]
+    relevant_matches.sort(key=lambda item: item["score"], reverse=True)
+    return relevant_matches[:limit]
 
 
 def format_context(context_matches: list[dict[str, Any]]) -> str:
@@ -122,8 +145,23 @@ def format_context(context_matches: list[dict[str, Any]]) -> str:
     - For each match, include Source ID, Title, Category, and Content.
     - Separate document blocks clearly.
     """
-    # TODO: Replace this placeholder with your implementation.
-    return ""
+    if not context_matches:
+        return "No relevant context found for the provided query."
+
+    blocks: list[str] = []
+    for match in context_matches:
+        document = match["document"]
+        blocks.append(
+            "\n".join(
+                [
+                    "Source ID: " + document["id"],
+                    "Title: " + document["title"],
+                    "Category: " + document["category"],
+                    "Content: " + document["text"],
+                ]
+            )
+        )
+    return "\n\n".join(blocks)
 
 
 def build_prompt(query: str, context_matches: list[dict[str, Any]]) -> str:
@@ -139,8 +177,21 @@ def build_prompt(query: str, context_matches: list[dict[str, Any]]) -> str:
     The prompt should tell the model to use only the provided context and avoid
     inventing unsupported details.
     """
-    # TODO: Replace this placeholder with your implementation.
-    return ""
+    context_text = format_context(context_matches)
+    return "\n\n".join(
+        [
+            "Instructions:",
+            "You are a helpful assistant. Use only the information in the provided context. If the context does not contain enough information, say so clearly and do not invent unsupported details.",
+            "Context:",
+            context_text,
+            "Question:",
+            query,
+            "Response requirements:",
+            "- Answer using only the provided context.",
+            "- Mention the relevant source IDs when available.",
+            "- Do not invent unsupported details.",
+        ]
+    )
 
 
 def source_metadata(match: dict[str, Any]) -> dict[str, str]:
@@ -149,5 +200,7 @@ def source_metadata(match: dict[str, Any]) -> dict[str, str]:
     TODO:
     Return only the document id and title.
     """
-    # TODO: Replace this placeholder with your implementation.
-    return {}
+    return {
+        "id": match["document"]["id"],
+        "title": match["document"]["title"],
+    }
