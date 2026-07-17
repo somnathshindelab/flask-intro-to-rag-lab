@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+
 from flask import Flask, jsonify, request
 
 from lib.ai_client import generate_response
@@ -17,8 +19,13 @@ def create_app():
 
     @app.get("/api/people")
     def get_people():
-        """Return the JSON payload from the people API endpoint."""
-        return jsonify(people_client.get_response_body())
+        """Return the parsed JSON payload from the people API endpoint."""
+        payload = people_client.get_response_body()
+
+        if isinstance(payload, (bytes, bytearray)):
+            payload = json.loads(payload.decode("utf-8"))
+
+        return jsonify(payload)
 
     @app.post("/api/ask")
     def ask_question():
