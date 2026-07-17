@@ -4,6 +4,7 @@ from flask import Flask, jsonify, request
 
 from lib.ai_client import generate_response
 from lib.company_documents import COMPANY_DOCUMENTS
+from lib.people_api_client import people_client
 from lib.rag_service import build_prompt, retrieve_context, source_metadata
 
 
@@ -13,6 +14,11 @@ def create_app():
     @app.get("/api/health")
     def health_check():
         return jsonify({"status": "ok"})
+
+    @app.get("/api/people")
+    def get_people():
+        """Return the JSON payload from the people API endpoint."""
+        return jsonify(people_client.get_response_body())
 
     @app.post("/api/ask")
     def ask_question():

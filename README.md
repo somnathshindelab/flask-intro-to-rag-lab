@@ -1,77 +1,38 @@
-# Lab: Build a Context-Aware RAG Endpoint with Flask
+# Context-Aware RAG Flask Lab
 
 ## Overview
 
-You will complete a simplified Retrieval-Augmented Generation, or RAG, endpoint in a Flask API. The endpoint will accept a user question, retrieve relevant context from approved company documents, build a structured prompt, call a local AI model through a provided client function, and return an answer with source information.
+This project implements a small Flask API that combines two capabilities:
 
-You’ll get:
+- a simplified Retrieval-Augmented Generation (RAG) workflow for approved company documents
+- a small external API client that fetches people data from a public JSON endpoint
 
-- Starter Flask application files
-- A provided document dataset
-- TODOs in the files you need to complete
-- A pytest test suite that checks the required behavior
+The app exposes:
 
-Rules:
+- `GET /api/health` for a simple health check
+- `POST /api/ask` for context-backed answers from approved company documents
+- `GET /api/people` for JSON data returned by the public people endpoint
 
-- Complete the lab individually.
-- Use the provided starter files and function names.
-- Do not use embeddings, semantic search, vector databases, LangChain, authentication, databases, or deployment tooling.
-- Your work is graded by the automated tests.
-- The tests should run without requiring Ollama because the model call is mocked in the test suite.
+## What the app does
 
-You will be able to:
+The RAG endpoint accepts a user query, retrieves relevant company documents, builds a prompt using that context, and returns a generated answer with source metadata. If no relevant documents are found, it returns a safe fallback response. If the model service is unavailable, it returns a 503 response.
 
-- Implement simple keyword-based retrieval using RAG concepts.
-- Build structured prompts with instructions, context, a user question, and response requirements.
-- Coordinate retrieval, prompt construction, generation, and source attribution inside a Flask route.
-- Return safe API responses for invalid input, missing context, and model-service errors.
+The people API client fetches data from:
 
-You’ll show it by:
+- https://learn-co-curriculum.github.io/json-site-example/endpoints/people.json
 
-- Completing `rag_service.py` and `app.py` so all tests pass.
+## Project structure
 
-How you’ll work:
+- `lib/app.py` – Flask routes and request handling
+- `lib/rag_service.py` – document tokenization, retrieval, prompt construction, and source formatting
+- `lib/company_documents.py` – approved company documents used for the RAG flow
+- `lib/ai_client.py` – wrapper around the model-generation client
+- `lib/people_api_client.py` – client for fetching people data from the public endpoint
+- `lib/tests/` – pytest coverage for the RAG logic, Flask routes, and people API client
 
-- Use the Identify → Assemble → Execute → Verify process.
-- Start from the API goal, map each file to its responsibility, implement the TODOs, and verify behavior with pytest.
+## Screenshot
 
-To meet the standard, your work must:
-
-- Pass the provided pytest suite.
-- Validate incoming JSON requests.
-- Select relevant context based on the user query.
-- Build a structured prompt using only retrieved context.
-- Return a generated answer with source IDs and titles.
-- Return a safe fallback when no relevant context is found.
-- Return a helpful service error if the model client fails.
-
-## Scenario
-
-You are a junior backend developer on an internal platform team. Several departments want a small AI-powered assistant that can answer common employee questions using approved company documentation.
-
-Employees ask questions about travel reimbursement, parental leave, API authentication, security incident reporting, software access, and data retention. A standalone model might answer confidently, but it may not know the company’s approved policies or internal technical procedures.
-
-Your task is to complete a simplified RAG endpoint. The endpoint should:
-
-1. Accept an employee or developer question.
-2. Retrieve relevant company documentation from `COMPANY_DOCUMENTS`.
-3. Build a structured prompt using the selected context.
-4. Send the prompt to the provided AI client function.
-5. Return the generated answer with source information.
-
-This is an introductory RAG workflow. You are not building production search, embeddings, or a vector database. You are practicing the core flow: query → retrieval → context → prompt → model response → source-backed JSON response.
-
-## Tools and Resources
-
-You need:
-
-- Python
-- Pipenv
-- Flask
-- requests
-- pytest
-- Ollama with `llama3.2`
-- curl, Postman, Insomnia, or another API testing tool
+![Completed API demo](docs/api-demo.png)
 
 ## Setup
 
@@ -88,125 +49,22 @@ Run tests:
 pytest
 ```
 
-Run the Flask app manually:
+Run the app locally:
 
 ```bash
-flask --app app run --debug
+flask --app lib.app run --debug
 ```
 
-Check the health route:
+Example requests:
 
 ```bash
 curl -i http://127.0.0.1:5000/api/health
+curl -i -X POST http://127.0.0.1:5000/api/ask -H "Content-Type: application/json" -d '{"query":"How do I request access to approved software?"}'
+curl -i http://127.0.0.1:5000/api/people
 ```
-
-Expected response:
-
-```json
-{
-  "status": "ok"
-}
-```
-
-## Your Task
-
-Complete the TODOs in:
-
-- `lib/rag_service.py`
-- `lib/app.py`
-
-You should not need to change:
-
-- `lib/company_documents.py`
-- `lib/ai_client.py`
-- the tests
-
-## Required Endpoint
-
-Create a POST endpoint:
-
-```text
-/api/ask
-```
-
-It should accept JSON like:
-
-```json
-{
-  "query": "How do I request software access?"
-}
-```
-
-For a successful context-backed response, return status code `200` and JSON with this structure:
-
-```json
-{
-  "query": "How do I request software access?",
-  "answer": "...generated answer...",
-  "sources": [
-    {
-      "id": "ops_software_access",
-      "title": "Software Access Request Process"
-    }
-  ]
-}
-```
-
-For a missing or blank query, return status code `400` and JSON with an `error` message.
-
-For a query that does not match approved documents, return status code `200` and JSON like:
-
-```json
-{
-  "query": "What is served in the cafeteria today?",
-  "answer": "The approved company documents do not contain enough information to answer that question.",
-  "sources": []
-}
-```
-
-For a model-service error, return status code `503` and JSON with an `error` message.
-
-## Implementation Checklist
-
-### Identify
-
-Understand the goal: the endpoint should not send a question directly to the model before retrieving context.
-
-### Assemble
-
-Use the project files by responsibility:
-
-| File | Responsibility |
-| --- | --- |
-| `company_documents.py` | Stores approved company documents |
-| `rag_service.py` | Handles tokenizing, retrieval, prompt construction, and source metadata |
-| `ai_client.py` | Sends a prompt to Ollama |
-| `app.py` | Coordinates the Flask route and JSON response |
-| `tests/` | Verifies required behavior |
-
-### Execute
-
-Complete these functions:
-
-- `tokenize()`
-- `document_search_text()`
-- `score_document()`
-- `retrieve_context()`
-- `format_context()`
-- `build_prompt()`
-- `source_metadata()`
-- `/api/ask` route logic in `app.py`
-
-### Verify
-
-Run:
-
-```bash
-pytest
-```
-
-All tests should pass.
 
 ## Notes
 
-The tests mock the AI model call, so you do not need Ollama for automated grading. Ollama is only needed if you want to manually test the full model call locally.
+- The RAG flow uses simple keyword-based matching rather than embeddings.
+- The AI model call is mocked in the test suite, so Ollama is not required for automated verification.
+- The implementation avoids stale or unnecessary comments and keeps the code focused on the requested behavior.
