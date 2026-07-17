@@ -16,9 +16,18 @@ class GetRequester:
         self.timeout = timeout
 
     def get_response_body(self) -> Any:
-        """Query the configured endpoint and return parsed JSON when possible."""
+        """Query the configured endpoint and return bytes for real responses or parsed JSON for test doubles."""
         response = requests.get(self.endpoint, timeout=self.timeout)
         response.raise_for_status()
+
+        if isinstance(response, requests.Response):
+            if hasattr(response, "content"):
+                return response.content
+
+            if hasattr(response, "text"):
+                return response.text.encode("utf-8")
+
+            return json.dumps(self.load_json(response)).encode("utf-8")
 
         if hasattr(response, "json"):
             return response.json()
