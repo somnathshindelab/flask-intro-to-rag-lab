@@ -28,6 +28,7 @@ def test_people_api_client_get_response_body_loads_json(monkeypatch):
 
     client = people_module.PeopleApiClient()
     assert client.get_response_body() == payload
+    assert client.load_json() == payload
 
 
 def test_people_endpoint_returns_json_payload(monkeypatch):
